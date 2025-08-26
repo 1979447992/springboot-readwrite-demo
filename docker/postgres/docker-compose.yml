@@ -43,6 +43,36 @@ services:
     networks:
       - postgres-network
 
+  postgres-config:
+    image: postgres:15
+    container_name: pg-config
+    environment:
+      POSTGRES_DB: config_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    volumes:
+      - ./config/data:/var/lib/postgresql/data
+      - ./scripts/config-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    ports:
+      - "5434:5432"
+    networks:
+      - postgres-network
+
+  postgres-log:
+    image: postgres:15
+    container_name: pg-log
+    environment:
+      POSTGRES_DB: log_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    volumes:
+      - ./log/data:/var/lib/postgresql/data
+      - ./scripts/log-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    ports:
+      - "5435:5432"
+    networks:
+      - postgres-network
+
 networks:
   postgres-network:
     driver: bridge

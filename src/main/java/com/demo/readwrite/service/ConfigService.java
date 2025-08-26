@@ -3,7 +3,10 @@ package com.demo.readwrite.service;
 import com.baomidou.dynamic.datasource.annotation.DS;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 
 /**
@@ -17,41 +20,113 @@ public class ConfigService {
     private JdbcTemplate jdbcTemplate;
     
     /**
-     * 获取应用配置 - 使用@DS指定配置库
-     * 不会触发读写分离逻辑
+     * 获取所有配置 - 使用@DS指定配置库
      */
     @DS("config")
-    public Map<String, Object> getAppConfig() {
-        System.out.println("🔧 [CONFIG-DB] 查询配置库 - 使用 @DS(\"config\")");
+    public List<Map<String, Object>> getAllConfigs() {
+        System.out.println("🔧 [CONFIG-DB] 查询所有配置 - 使用 @DS(\"config\") - localhost:5434");
         
-        Map<String, Object> config = new HashMap<>();
-        config.put("app_name", "ReadWrite Demo");
-        config.put("version", "1.0.0");
-        config.put("max_connections", 100);
-        config.put("datasource_note", "配置库不分离，单库操作");
-        config.put("timestamp", new Date().toString());
-        
-        // 注意：这里会使用localhost:5434的config数据库
-        // 而不是主从分离的5432/5433
-        
-        return config;
+        String sql = "SELECT * FROM config_settings WHERE is_active = true ORDER BY config_group, config_key";
+        return jdbcTemplate.queryForList(sql);
     }
     
     /**
-     * 更新配置 - 使用@DS指定配置库
+     * 根据配置键获取配置值
      */
-    @DS("config") 
-    public Map<String, Object> updateConfig(String key, String value) {
-        System.out.println("🔧 [CONFIG-DB] 更新配置库 - 使用 @DS(\"config\")");
+    @DS("config")
+    public Map<String, Object> getConfigByKey(String configKey) {
+        System.out.println("🔧 [CONFIG-DB] 查询配置: " + configKey + " - 使用 @DS(\"config\")");
+        
+        String sql = "SELECT * FROM config_settings WHERE config_key = ? AND is_active = true";
+        List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, configKey);
+        
+        if (!results.isEmpty()) {
+            return results.get(0);
+        }
+        return null;
+    }
+    
+    /**
+     * 根据配置组获取配置
+     */
+    @DS("config")
+    public List<Map<String, Object>> getConfigsByGroup(String configGroup) {
+        System.out.println("🔧 [CONFIG-DB] 查询配置组: " + configGroup + " - 使用 @DS(\"config\")");
+        
+        String sql = "SELECT * FROM config_settings WHERE config_group = ? AND is_active = true ORDER BY config_key";
+        return jdbcTemplate.queryForList(sql, configGroup);
+    }
+    
+    /**
+     * 创建新配置
+     */
+    @DS("config")
+    public Map<String, Object> createConfig(String configKey, String configValue, String description, String configGroup) {
+        System.out.println("🔧 [CONFIG-DB] 创建配置: " + configKey + " - 使用 @DS(\"config\")");
+        
+        String sql = "INSERT INTO config_settings (config_key, config_value, description, config_group) VALUES (?, ?, ?, ?)";
+        int rows = jdbcTemplate.update(sql, configKey, configValue, description, configGroup);
         
         Map<String, Object> result = new HashMap<>();
-        result.put("operation", "UPDATE_CONFIG");
-        result.put("key", key);
-        result.put("value", value);
+        result.put("operation", "CREATE_CONFIG");
+        result.put("key", configKey);
+        result.put("value", configValue);
+        result.put("affected_rows", rows);
         result.put("datasource", "config库 (localhost:5434)");
-        result.put("note", "不使用读写分离");
         result.put("timestamp", new Date().toString());
         
         return result;
+    }
+    
+    /**
+     * 更新配置
+     */
+    @DS("config") 
+    public Map<String, Object> updateConfig(String configKey, String configValue) {
+        System.out.println("🔧 [CONFIG-DB] 更新配置: " + configKey + " - 使用 @DS(\"config\")");
+        
+        String sql = "UPDATE config_settings SET config_value = ?, updated_at = CURRENT_TIMESTAMP WHERE config_key = ?";
+        int rows = jdbcTemplate.update(sql, configValue, configKey);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "UPDATE_CONFIG");
+        result.put("key", configKey);
+        result.put("value", configValue);
+        result.put("affected_rows", rows);
+        result.put("datasource", "config库 (localhost:5434)");
+        result.put("timestamp", new Date().toString());
+        
+        return result;
+    }
+    
+    /**
+     * 删除配置 (软删除)
+     */
+    @DS("config")
+    public Map<String, Object> deleteConfig(String configKey) {
+        System.out.println("🔧 [CONFIG-DB] 删除配置: " + configKey + " - 使用 @DS(\"config\")");
+        
+        String sql = "UPDATE config_settings SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE config_key = ?";
+        int rows = jdbcTemplate.update(sql, configKey);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "DELETE_CONFIG");
+        result.put("key", configKey);
+        result.put("affected_rows", rows);
+        result.put("datasource", "config库 (localhost:5434)");
+        result.put("timestamp", new Date().toString());
+        
+        return result;
+    }
+    
+    /**
+     * 获取所有配置分类
+     */
+    @DS("config")
+    public List<Map<String, Object>> getConfigCategories() {
+        System.out.println("🔧 [CONFIG-DB] 查询配置分类 - 使用 @DS(\"config\")");
+        
+        String sql = "SELECT * FROM config_categories ORDER BY category_name";
+        return jdbcTemplate.queryForList(sql);
     }
 }
