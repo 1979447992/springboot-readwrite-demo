@@ -1,0 +1,58 @@
+# 多数据源 + 读写分离混合配置
+
+spring:
+  application:
+    name: readwrite-demo
+  
+  # Dynamic DataSource 配置
+  datasource:
+    dynamic:
+      primary: master  # 默认主数据源
+      strict: false    # 非严格模式，找不到数据源时使用默认
+      
+      datasource:
+        # 主业务库 - 读写分离
+        master:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://localhost:5432/readwrite_demo
+          username: postgres
+          password: postgres123
+          type: com.zaxxer.hikari.HikariDataSource
+          hikari:
+            pool-name: MasterPool
+            maximum-pool-size: 10
+            
+        slave:
+          driver-class-name: org.postgresql.Driver  
+          url: jdbc:postgresql://localhost:5433/readwrite_demo  # 不同端口！
+          username: postgres
+          password: postgres123
+          type: com.zaxxer.hikari.HikariDataSource
+          hikari:
+            pool-name: SlavePool
+            maximum-pool-size: 8
+            
+        # 配置数据库 - 单库，不分离
+        config:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://localhost:5434/config_db
+          username: postgres  
+          password: postgres123
+          
+        # 日志数据库 - 单库，不分离
+        log:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://localhost:5435/log_db
+          username: postgres
+          password: postgres123
+
+# 日志配置
+logging:
+  level:
+    com.demo.readwrite: DEBUG
+    com.baomidou.dynamic.datasource: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%logger{36}] - %msg%n"
+
+server:
+  port: 8080
