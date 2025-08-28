@@ -1,64 +1,94 @@
 package com.demo.readwrite.service;
 
+import com.demo.readwrite.entity.User;
+import com.demo.readwrite.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;  
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 /**
- * 主业务Service - 使用默认数据源，自动读写分离
+ * 用户业务Service - 使用ShardingSphere自动读写分离
  */
 @Service
 public class UserService {
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private UserMapper userMapper;
     
     /**
      * 查询所有用户 - 自动路由到SLAVE
      */
-    public List<Map<String, Object>> findAllUsers() {
-        return jdbcTemplate.queryForList("SELECT * FROM users ORDER BY id");
+    public List<User> findAllUsers() {
+        System.out.println("📖 [SLAVE-DB] 查询所有用户 - ShardingSphere自动路由到从库");
+        return userMapper.selectList(100);
+    }
+    
+    /**
+     * 根据ID查询用户 - 自动路由到SLAVE  
+     */
+    public User findUserById(Long id) {
+        System.out.println("📖 [SLAVE-DB] 根据ID查询用户: " + id + " - ShardingSphere自动路由到从库");
+        return userMapper.selectById(id);
     }
     
     /**
      * 创建用户 - 自动路由到MASTER
      */
-    public Map<String, Object> createUser(String username, String email) {
-        String sql = "INSERT INTO users (username, email) VALUES (?, ?) RETURNING *";
-        return jdbcTemplate.queryForMap(sql, username, email);
+    @Transactional
+    public User createUser(String username, String email, Integer age) {
+        System.out.println("✍️ [MASTER-DB] 创建用户: " + username + " - ShardingSphere自动路由到主库");
+        User user = new User(username, email, age);
+        userMapper.insert(user);
+        return user;
     }
     
     /**
      * 更新用户 - 自动路由到MASTER
      */
-    public Map<String, Object> updateUser(Long id, String username, String email) {
-        String sql = "UPDATE users SET username=?, email=?, updated_at=NOW() WHERE id=? RETURNING *";
-        return jdbcTemplate.queryForMap(sql, username, email, id);
+    @Transactional
+    public User updateUser(Long id, String username, String email, Integer age) {
+        System.out.println("✍️ [MASTER-DB] 更新用户: " + id + " - ShardingSphere自动路由到主库");
+        User user = new User();
+        user.setId(id);
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setAge(age);
+        user.setStatus(1);
+        userMapper.update(user);
+        return user;
     }
     
     /**
-     * 强制从主库查询用户数量 - 用于同步测试
+     * 删除用户 - 自动路由到MASTER
      */
-    public int countUsersFromMaster() {
-        // 这个方法名不会触发自动分离，但我们可以手动指定
-        com.demo.readwrite.DataSourceContextHolder.setMaster();
-        try {
-            return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
-        } finally {
-            com.demo.readwrite.DataSourceContextHolder.clearDataSource();
-        }
+    @Transactional
+    public int deleteUser(Long id) {
+        System.out.println("✍️ [MASTER-DB] 删除用户: " + id + " - ShardingSphere自动路由到主库");
+        return userMapper.deleteById(id);
     }
     
     /**
-     * 强制从从库查询用户数量 - 用于同步测试
+     * 统计用户总数 - 自动路由到SLAVE
      */
-    public int countUsersFromSlave() {
-        com.demo.readwrite.DataSourceContextHolder.setSlave();
-        try {
-            return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
-        } finally {
-            com.demo.readwrite.DataSourceContextHolder.clearDataSource();
-        }
+    public int countUsers() {
+        System.out.println("📖 [SLAVE-DB] 统计用户总数 - ShardingSphere自动路由到从库");
+        return userMapper.count();
+    }
+    
+    /**
+     * 根据用户名查询用户 - 自动路由到SLAVE
+     */
+    public User findUserByUsername(String username) {
+        System.out.println("📖 [SLAVE-DB] 根据用户名查询用户: " + username + " - ShardingSphere自动路由到从库");
+        return userMapper.selectByUsername(username);
+    }
+    
+    /**
+     * 根据状态查询用户 - 自动路由到SLAVE
+     */
+    public List<User> findUsersByStatus(Integer status) {
+        System.out.println("📖 [SLAVE-DB] 根据状态查询用户: " + status + " - ShardingSphere自动路由到从库");
+        return userMapper.selectByStatus(status, 50);
     }
 }

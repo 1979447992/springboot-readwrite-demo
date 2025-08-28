@@ -1,110 +1,207 @@
 package com.demo.readwrite;
 
+import com.demo.readwrite.entity.User;
+import com.demo.readwrite.service.UserService;
+import org.apache.shardingsphere.infra.hint.HintManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
+/**
+ * 读写分离测试Controller - 使用ShardingSphere自动读写分离
+ */
 @RestController
+@RequestMapping("/api")
 public class ReadWriteController {
 
+    @Autowired
+    private UserService userService;
+
+    /**
+     * 查询所有用户 - ShardingSphere自动路由到从库
+     */
     @GetMapping("/users")
     public Map<String, Object> getUsers() {
-        System.out.println("\n========== 查询操作开始 ==========");
-        DataSourceContextHolder.setSlave();
+        System.out.println("\n========== 查询所有用户操作开始 ==========");
         
-        DataSourceType currentDS = DataSourceContextHolder.getDataSource();
-        String realDataSource = currentDS != null ? currentDS.getValue() : "未设置";
+        List<User> users = userService.findAllUsers();
         
         Map<String, Object> result = new HashMap<>();
-        result.put("operation", "SELECT");
-        result.put("real_datasource_from_threadlocal", realDataSource);
-        result.put("is_master", DataSourceContextHolder.isMaster());
-        result.put("is_slave", DataSourceContextHolder.isSlave());
-        result.put("threadlocal_object", currentDS);
-        result.put("users", Arrays.asList("张三", "李四", "王五"));
-        result.put("current_thread", Thread.currentThread().getName());
+        result.put("operation", "SELECT_ALL_USERS");
+        result.put("routing", "ShardingSphere自动路由到从库");
+        result.put("users", users);
+        result.put("count", users.size());
         result.put("timestamp", new Date().toString());
         
-        System.out.println("✅ 真实数据源: " + realDataSource);
-        DataSourceContextHolder.clearDataSource();
-        System.out.println("========== 查询操作结束 ==========\n");
+        System.out.println("========== 查询所有用户操作结束 ==========\n");
         return result;
     }
 
-    @PostMapping("/users")
-    public Map<String, Object> createUser(@RequestParam(defaultValue = "新用户") String name) {
-        System.out.println("\n========== 写入操作开始 ==========");
-        DataSourceContextHolder.setMaster();
+    /**
+     * 根据ID查询用户 - ShardingSphere自动路由到从库
+     */
+    @GetMapping("/users/{id}")
+    public Map<String, Object> getUserById(@PathVariable Long id) {
+        System.out.println("\n========== 根据ID查询用户操作开始 ==========");
         
-        DataSourceType currentDS = DataSourceContextHolder.getDataSource();
-        String realDataSource = currentDS != null ? currentDS.getValue() : "未设置";
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("operation", "INSERT");
-        result.put("real_datasource_from_threadlocal", realDataSource);
-        result.put("is_master", DataSourceContextHolder.isMaster());
-        result.put("is_slave", DataSourceContextHolder.isSlave());
-        result.put("threadlocal_object", currentDS);
-        result.put("user_name", name);
-        result.put("user_id", new Random().nextInt(1000));
-        result.put("current_thread", Thread.currentThread().getName());
-        result.put("timestamp", new Date().toString());
-        
-        System.out.println("✅ 真实数据源: " + realDataSource);
-        DataSourceContextHolder.clearDataSource();
-        System.out.println("========== 写入操作结束 ==========\n");
-        return result;
-    }
-
-    @GetMapping("/users/{id}/auth") 
-    public Map<String, Object> getUserAuth(@PathVariable Long id) {
-        System.out.println("\n========== 认证查询开始 (强制主库) ==========");
-        DataSourceContextHolder.setMaster();
-        
-        DataSourceType currentDS = DataSourceContextHolder.getDataSource();
-        String realDataSource = currentDS != null ? currentDS.getValue() : "未设置";
+        User user = userService.findUserById(id);
         
         Map<String, Object> result = new HashMap<>();
-        result.put("operation", "AUTH_SELECT");
-        result.put("real_datasource_from_threadlocal", realDataSource);
-        result.put("is_master", DataSourceContextHolder.isMaster());
-        result.put("is_slave", DataSourceContextHolder.isSlave());
-        result.put("threadlocal_object", currentDS);
+        result.put("operation", "SELECT_USER_BY_ID");
+        result.put("routing", "ShardingSphere自动路由到从库");
         result.put("user_id", id);
-        result.put("auth_status", "已验证");
-        result.put("note", "强制使用主库进行认证查询");
-        result.put("current_thread", Thread.currentThread().getName());
+        result.put("user", user);
+        result.put("found", user != null);
         result.put("timestamp", new Date().toString());
         
-        System.out.println("✅ 认证查询 - 真实数据源: " + realDataSource);
-        System.out.println("✅ 强制主库认证完成");
-        DataSourceContextHolder.clearDataSource();
-        System.out.println("========== 认证查询结束 ==========\n");
+        System.out.println("========== 根据ID查询用户操作结束 ==========\n");
         return result;
     }
 
-    @GetMapping("/datasource/test")
-    public Map<String, Object> testDataSource() {
+    /**
+     * 创建用户 - ShardingSphere自动路由到主库
+     */
+    @PostMapping("/users")
+    public Map<String, Object> createUser(
+            @RequestParam String username,
+            @RequestParam String email,
+            @RequestParam(defaultValue = "25") Integer age) {
+        System.out.println("\n========== 创建用户操作开始 ==========");
+        
+        User user = userService.createUser(username, email, age);
+        
         Map<String, Object> result = new HashMap<>();
-        DataSourceContextHolder.setMaster();
-        DataSourceType masterDS = DataSourceContextHolder.getDataSource();
-        result.put("master_test", masterDS != null ? masterDS.getValue() : "null");
-        result.put("master_is_master", DataSourceContextHolder.isMaster());
+        result.put("operation", "INSERT_USER");
+        result.put("routing", "ShardingSphere自动路由到主库");
+        result.put("user", user);
+        result.put("timestamp", new Date().toString());
         
-        DataSourceContextHolder.setSlave();
-        DataSourceType slaveDS = DataSourceContextHolder.getDataSource();
-        result.put("slave_test", slaveDS != null ? slaveDS.getValue() : "null");
-        result.put("slave_is_slave", DataSourceContextHolder.isSlave());
-        
-        DataSourceContextHolder.clearDataSource();
-        result.put("after_clear", DataSourceContextHolder.getDataSource());
-        result.put("证明", "这些是ThreadLocal中的真实值，不是硬编码");
+        System.out.println("========== 创建用户操作结束 ==========\n");
         return result;
     }
 
+    /**
+     * 更新用户 - ShardingSphere自动路由到主库
+     */
+    @PutMapping("/users/{id}")
+    public Map<String, Object> updateUser(
+            @PathVariable Long id,
+            @RequestParam String username,
+            @RequestParam String email,
+            @RequestParam Integer age) {
+        System.out.println("\n========== 更新用户操作开始 ==========");
+        
+        User user = userService.updateUser(id, username, email, age);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "UPDATE_USER");
+        result.put("routing", "ShardingSphere自动路由到主库");
+        result.put("user_id", id);
+        result.put("user", user);
+        result.put("timestamp", new Date().toString());
+        
+        System.out.println("========== 更新用户操作结束 ==========\n");
+        return result;
+    }
+
+    /**
+     * 删除用户 - ShardingSphere自动路由到主库
+     */
+    @DeleteMapping("/users/{id}")
+    public Map<String, Object> deleteUser(@PathVariable Long id) {
+        System.out.println("\n========== 删除用户操作开始 ==========");
+        
+        int rows = userService.deleteUser(id);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "DELETE_USER");
+        result.put("routing", "ShardingSphere自动路由到主库");
+        result.put("user_id", id);
+        result.put("affected_rows", rows);
+        result.put("deleted", rows > 0);
+        result.put("timestamp", new Date().toString());
+        
+        System.out.println("========== 删除用户操作结束 ==========\n");
+        return result;
+    }
+
+    /**
+     * 强制主库查询 - 使用HintManager强制路由到主库
+     */
+    @GetMapping("/users/{id}/auth")
+    public Map<String, Object> getUserAuthFromMaster(@PathVariable Long id) {
+        System.out.println("\n========== 强制主库认证查询开始 ==========");
+        
+        User user;
+        try (HintManager hintManager = HintManager.getInstance()) {
+            // 强制使用主库
+            hintManager.setWriteRouteOnly();
+            user = userService.findUserById(id);
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "AUTH_SELECT_FROM_MASTER");
+        result.put("routing", "HintManager强制路由到主库");
+        result.put("user_id", id);
+        result.put("user", user);
+        result.put("note", "强制使用主库进行认证查询，保证数据实时性");
+        result.put("timestamp", new Date().toString());
+        
+        System.out.println("========== 强制主库认证查询结束 ==========\n");
+        return result;
+    }
+
+    /**
+     * 统计用户总数 - ShardingSphere自动路由到从库
+     */
+    @GetMapping("/users/count")
+    public Map<String, Object> countUsers() {
+        System.out.println("\n========== 统计用户总数开始 ==========");
+        
+        int count = userService.countUsers();
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "COUNT_USERS");
+        result.put("routing", "ShardingSphere自动路由到从库");
+        result.put("total_users", count);
+        result.put("timestamp", new Date().toString());
+        
+        System.out.println("========== 统计用户总数结束 ==========\n");
+        return result;
+    }
+
+    /**
+     * 根据用户名查询用户 - ShardingSphere自动路由到从库
+     */
+    @GetMapping("/users/search")
+    public Map<String, Object> searchUserByUsername(@RequestParam String username) {
+        System.out.println("\n========== 根据用户名搜索用户开始 ==========");
+        
+        User user = userService.findUserByUsername(username);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("operation", "SEARCH_USER_BY_USERNAME");
+        result.put("routing", "ShardingSphere自动路由到从库");
+        result.put("username", username);
+        result.put("user", user);
+        result.put("found", user != null);
+        result.put("timestamp", new Date().toString());
+        
+        System.out.println("========== 根据用户名搜索用户结束 ==========\n");
+        return result;
+    }
+
+    /**
+     * 应用状态检查
+     */
     @GetMapping("/status")
     public Map<String, Object> getStatus() {
         Map<String, Object> result = new HashMap<>();
-        result.put("application", "读写分离演示");
+        result.put("application", "SpringBoot + ShardingSphere 读写分离演示");
+        result.put("version", "2.0-MySQL");
+        result.put("database", "MySQL 8.0 (主从复制)");
+        result.put("sharding_sphere", "5.4.1");
+        result.put("features", Arrays.asList("读写分离", "@DS注解混合", "强制主库查询"));
         result.put("status", "运行中");
         result.put("timestamp", new Date().toString());
         return result;

@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  mysql-master:
+    image: mysql:8.0
+    container_name: mysql-master
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: readwrite_demo
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: demo123
+      TZ: Asia/Shanghai
+    volumes:
+      - ./master/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./scripts/master-init.sql:/docker-entrypoint-initdb.d/01-master-init.sql
+      - ./scripts/demo-data.sql:/docker-entrypoint-initdb.d/02-demo-data.sql
+      - mysql-master-data:/var/lib/mysql
+    command: >
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-do-db=readwrite_demo
+      --sync-binlog=1
+      --innodb-flush-log-at-trx-commit=1
+    networks:
+      - mysql-network
+
+  mysql-slave:
+    image: mysql:8.0
+    container_name: mysql-slave
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: readwrite_demo
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: demo123
+      TZ: Asia/Shanghai
+    volumes:
+      - ./slave/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./scripts/slave-init.sql:/docker-entrypoint-initdb.d/01-slave-init.sql
+      - mysql-slave-data:/var/lib/mysql
+    command: >
+      --server-id=2
+      --relay-log=mysql-relay
+      --read-only=1
+      --super-read-only=1
+    depends_on:
+      - mysql-master
+    networks:
+      - mysql-network
+
+  # 配置第三个数据库用于@DS注解测试
+  mysql-config:
+    image: mysql:8.0
+    container_name: mysql-config
+    restart: unless-stopped
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: config_db
+      MYSQL_USER: config
+      MYSQL_PASSWORD: config123
+      TZ: Asia/Shanghai
+    volumes:
+      - ./scripts/config-init.sql:/docker-entrypoint-initdb.d/01-config-init.sql
+      - mysql-config-data:/var/lib/mysql
+    networks:
+      - mysql-network
+
+volumes:
+  mysql-master-data:
+  mysql-slave-data:
+  mysql-config-data:
+
+networks:
+  mysql-network:
+    driver: bridge
