@@ -29,7 +29,6 @@ class PaymentServiceTest {
     @BeforeEach
     void setUp() {
         paymentService = new PaymentService();
-        paymentService.setBaseMapper(paymentMapper);
         
         testPayment = new Payment(1001L, "ORDER_TEST_001", new BigDecimal("99.99"), "微信支付", "测试支付");
         testPayment.setId(2001L);

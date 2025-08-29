@@ -28,9 +28,8 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         userService = new UserService();
-        userService.setBaseMapper(userMapper);
         
-        testUser = new User("testuser", "test@example.com", "13800000001", "password123");
+        testUser = new User("testuser", "test@example.com", 25);
         testUser.setId(1001L);
     }
 
@@ -38,13 +37,12 @@ class UserServiceTest {
     void createUser_ShouldReturnUser_WhenValidData() {
         when(userMapper.insert(any(User.class))).thenReturn(1);
         
-        User result = userService.createUser("testuser", "test@example.com", "13800000001", "password123");
+        User result = userService.createUser("testuser", "test@example.com", 25);
         
         assertNotNull(result);
         assertEquals("testuser", result.getUsername());
         assertEquals("test@example.com", result.getEmail());
-        assertEquals("13800000001", result.getPhone());
-        assertEquals("password123", result.getPassword());
+        assertEquals(25, result.getAge());
         verify(userMapper, times(1)).insert(any(User.class));
     }
 
@@ -70,57 +68,69 @@ class UserServiceTest {
     }
 
     @Test
-    void findByUsername_ShouldReturnUser_WhenUsernameExists() {
-        when(userMapper.findByUsername("testuser")).thenReturn(testUser);
-        
-        User result = userService.findByUsername("testuser");
-        
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
-        verify(userMapper, times(1)).findByUsername("testuser");
-    }
-
-    @Test
-    void authenticate_ShouldReturnUser_WhenCredentialsValid() {
-        when(userMapper.findByUsername("testuser")).thenReturn(testUser);
-        
-        User result = userService.authenticate("testuser", "password123");
-        
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
-        verify(userMapper, times(1)).findByUsername("testuser");
-    }
-
-    @Test
-    void authenticate_ShouldReturnNull_WhenPasswordInvalid() {
-        when(userMapper.findByUsername("testuser")).thenReturn(testUser);
-        
-        User result = userService.authenticate("testuser", "wrongpassword");
-        
-        assertNull(result);
-        verify(userMapper, times(1)).findByUsername("testuser");
-    }
-
-    @Test
-    void authenticate_ShouldReturnNull_WhenUserNotExists() {
-        when(userMapper.findByUsername("nonexistentuser")).thenReturn(null);
-        
-        User result = userService.authenticate("nonexistentuser", "password123");
-        
-        assertNull(result);
-        verify(userMapper, times(1)).findByUsername("nonexistentuser");
-    }
-
-    @Test
-    void findByStatus_ShouldReturnUsers_WhenUsersExist() {
+    void findByUsername_ShouldReturnUserList_WhenUsernameExists() {
         List<User> users = Arrays.asList(testUser);
-        when(userMapper.findByStatus(1)).thenReturn(users);
+        when(userMapper.selectList(any())).thenReturn(users);
         
-        List<User> result = userService.findByStatus(1);
+        List<User> result = userService.findByUsername("testuser");
         
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("testuser", result.get(0).getUsername());
-        verify(userMapper, times(1)).findByStatus(1);
+        verify(userMapper, times(1)).selectList(any());
+    }
+
+    @Test
+    void getFromMaster_ShouldReturnUser_WhenUserExists() {
+        when(userMapper.selectById(1001L)).thenReturn(testUser);
+        
+        User result = userService.getFromMaster(1001L);
+        
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(25, result.getAge());
+        verify(userMapper, times(1)).selectById(1001L);
+    }
+
+    @Test
+    void getAllUsers_ShouldReturnUserList() {
+        List<User> users = Arrays.asList(testUser);
+        when(userMapper.selectList(null)).thenReturn(users);
+        
+        List<User> result = userService.getAllUsers();
+        
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("testuser", result.get(0).getUsername());
+        verify(userMapper, times(1)).selectList(null);
+    }
+
+    @Test
+    void updateUser_ShouldReturnUpdatedUser() {
+        User updatedUser = new User("updated", "updated@test.com", 30);
+        updatedUser.setId(1001L);
+        
+        when(userMapper.updateById(any(User.class))).thenReturn(1);
+        
+        User result = userService.updateUser(updatedUser);
+        
+        assertNotNull(result);
+        assertEquals("updated", result.getUsername());
+        assertEquals("updated@test.com", result.getEmail());
+        assertEquals(30, result.getAge());
+        verify(userMapper, times(1)).updateById(any(User.class));
+    }
+
+    @Test
+    void searchUsers_ShouldReturnMatchingUsers() {
+        List<User> users = Arrays.asList(testUser);
+        when(userMapper.selectList(any())).thenReturn(users);
+        
+        List<User> result = userService.searchUsers("test");
+        
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("testuser", result.get(0).getUsername());
+        verify(userMapper, times(1)).selectList(any());
     }
 }

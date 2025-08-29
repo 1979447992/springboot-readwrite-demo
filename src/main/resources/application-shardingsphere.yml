@@ -2,73 +2,58 @@ spring:
   application:
     name: readwrite-demo
   
-  # ShardingSphere配置
+  # ShardingSphere配置 - 简化单库双用户方案
   shardingsphere:
     # 数据源配置
     datasource:
       names: master,slave
       
-      # 主库配置
+      # 主库配置（写操作）
       master:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: oracle.jdbc.OracleDriver
-        jdbc-url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
-        username: MASTER_USER
-        password: master_password
+        jdbc-url: jdbc:oracle:thin:@//oracle-db:1521/XEPDB1
+        username: ${DB_MASTER_USERNAME:MASTER_USER}
+        password: ${DB_MASTER_PASSWORD:master123}
         hikari:
           pool-name: MasterHikariPool
-          minimum-idle: 5
-          maximum-pool-size: 20
-          auto-commit: true
-          idle-timeout: 30000
-          max-lifetime: 1800000
+          minimum-idle: 2
+          maximum-pool-size: 10
           connection-timeout: 30000
           connection-test-query: SELECT 1 FROM DUAL
       
-      # 从库配置  
+      # 从库配置（读操作）
       slave:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: oracle.jdbc.OracleDriver
-        jdbc-url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
-        username: SLAVE_USER
-        password: slave_password
+        jdbc-url: jdbc:oracle:thin:@//oracle-db:1521/XEPDB1  
+        username: ${DB_SLAVE_USERNAME:SLAVE_USER}
+        password: ${DB_SLAVE_PASSWORD:slave123}
         hikari:
           pool-name: SlaveHikariPool
-          minimum-idle: 5
-          maximum-pool-size: 15
-          auto-commit: true
-          idle-timeout: 30000
-          max-lifetime: 1800000
+          minimum-idle: 2
+          maximum-pool-size: 8
           connection-timeout: 30000
           connection-test-query: SELECT 1 FROM DUAL
     
-    # 读写分离规则配置
+    # 读写分离规则
     rules:
       readwrite-splitting:
         data-sources:
           readwrite-ds:
-            # 静态读写分离配置
             static-strategy:
               write-data-source-name: master
               read-data-source-names: slave
-            # 负载均衡算法
             load-balancer-name: round-robin
-        
-        # 负载均衡算法配置
         load-balancers:
           round-robin:
             type: ROUND_ROBIN
     
     # 属性配置
     props:
-      # 显示SQL
+      # 显示SQL日志，方便验证读写分离
       sql-show: true
-      # SQL执行时间阈值(毫秒)，超过阈值的SQL会被记录
       sql-simple: true
-      # 最大连接数限制
-      max-connections-size-per-query: 1
-      # 是否在启动时检查重复表
-      check-duplicate-table-enabled: false
 
 server:
   port: 8080
@@ -85,15 +70,23 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: ASSIGN_ID
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
 
-# 日志配置
+# 验证读写分离的日志配置
 logging:
   level:
-    com.demo.readwrite: INFO
+    com.demo.readwrite: DEBUG
     org.apache.shardingsphere: INFO
     com.baomidou.mybatisplus: DEBUG
+    org.apache.shardingsphere.readwritesplitting: DEBUG
   pattern:
-    console: "[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%thread] %-5level %logger{36} - %msg%n"
+    console: "[%d{HH:mm:ss.SSS}] [%thread] %-5level %logger{36} - %msg%n"
+
+# 监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,beans,datasource
+  endpoint:
+    health:
+      show-details: always

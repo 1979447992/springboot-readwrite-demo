@@ -1,11 +1,12 @@
 package com.demo.readwrite.config;
 
-import org.apache.shardingsphere.readwritesplitting.api.hint.HintManager;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * ShardingSphere强制主库路由工具
  * 用于关键业务操作强制使用主库
+ * ShardingSphere 5.x版本推荐使用事务机制来控制读写路由
  */
 @Component
 public class MasterRouteManager {
@@ -17,29 +18,22 @@ public class MasterRouteManager {
      *     // 这里的所有数据库操作都会路由到主库
      *     return userService.getUserById(id);
      * });
+     * 
+     * 注意：在事务中的所有操作都会路由到主库
      */
+    @Transactional
     public <T> T executeOnMaster(MasterOperation<T> operation) {
-        HintManager hintManager = HintManager.getInstance();
-        try {
-            // 强制路由到主库
-            hintManager.setWriteRouteOnly();
-            return operation.execute();
-        } finally {
-            hintManager.close();
-        }
+        // 在事务中执行，自动路由到主库
+        return operation.execute();
     }
     
     /**
      * 无返回值的强制主库操作
      */
+    @Transactional
     public void executeOnMaster(MasterOperationVoid operation) {
-        HintManager hintManager = HintManager.getInstance();
-        try {
-            hintManager.setWriteRouteOnly();
-            operation.execute();
-        } finally {
-            hintManager.close();
-        }
+        // 在事务中执行，自动路由到主库
+        operation.execute();
     }
     
     @FunctionalInterface

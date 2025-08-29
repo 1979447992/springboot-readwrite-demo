@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.demo.readwrite.annotation.MasterDB;
 import com.demo.readwrite.entity.User;
 import com.demo.readwrite.mapper.UserMapper;
+import com.demo.readwrite.config.MasterRouteManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,8 +14,11 @@ import java.util.List;
 @Service
 public class UserService extends ServiceImpl<UserMapper, User> {
 
-    public User createUser(String username, String email, String phone, String password) {
-        User user = new User(username, email, phone, password);
+    @Autowired
+    private MasterRouteManager masterRouteManager;
+
+    public User createUser(String username, String email, Integer age) {
+        User user = new User(username, email, age);
         save(user);
         return user;
     }
@@ -35,39 +40,39 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         return list();
     }
 
-    public User findByUsername(String username) {
-        return baseMapper.findByUsername(username);
+    public List<User> findByUsername(String username) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", username);
+        return list(queryWrapper);
     }
 
-    public User findByEmail(String email) {
-        return baseMapper.findByEmail(email);
+    /**
+     * 强制从主库查询用户信息
+     */
+    @MasterDB("强制主库查询")
+    public User getFromMaster(Long id) {
+        return getById(id);
     }
 
-    public User findByPhone(String phone) {
-        return baseMapper.findByPhone(phone);
+    /**
+     * 另一种实现强制主库查询的方式
+     */
+    public User getFromMasterAlternative(Long id) {
+        return masterRouteManager.executeOnMaster(() -> getById(id));
     }
 
     @MasterDB("用户状态变更需要强制主库查询")
     public List<User> findByStatus(Integer status) {
-        return baseMapper.findByStatus(status);
-    }
-
-    @MasterDB("用户认证需要强制主库查询")
-    public User authenticate(String username, String password) {
-        User user = findByUsername(username);
-        if (user != null && password.equals(user.getPassword())) {
-            return user;
-        }
-        return null;
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("status", status);
+        return list(queryWrapper);
     }
 
     public List<User> searchUsers(String keyword) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("username", keyword)
                    .or()
-                   .like("email", keyword)
-                   .or()
-                   .like("phone", keyword);
+                   .like("email", keyword);
         return list(queryWrapper);
     }
 }

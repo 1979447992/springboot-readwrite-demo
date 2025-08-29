@@ -15,15 +15,20 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    /**
+     * 创建用户 (写操作 - 路由到主库)
+     */
     @PostMapping
     public ResponseEntity<User> createUser(@RequestParam String username,
                                          @RequestParam String email,
-                                         @RequestParam String phone,
-                                         @RequestParam String password) {
-        User user = userService.createUser(username, email, phone, password);
-        return ResponseEntity.ok(user);
+                                         @RequestParam Integer age) {
+        User savedUser = userService.createUser(username, email, age);
+        return ResponseEntity.ok(savedUser);
     }
 
+    /**
+     * 更新用户 (写操作 - 路由到主库)
+     */
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id,
                                          @RequestBody User user) {
@@ -32,58 +37,56 @@ public class UserController {
         return ResponseEntity.ok(updatedUser);
     }
 
+    /**
+     * 删除用户 (写操作 - 路由到主库)
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Boolean> deleteUser(@PathVariable Long id) {
-        boolean result = userService.deleteUser(id);
+        boolean result = userService.removeById(id);
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 根据ID查询用户 (读操作 - 路由到从库)
+     */
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User user = userService.getUserById(id);
+        User user = userService.getById(id);
         return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
     }
 
+    /**
+     * 查询所有用户 (读操作 - 路由到从库)
+     */
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+        List<User> users = userService.list();
         return ResponseEntity.ok(users);
     }
 
+    /**
+     * 根据用户名查询 (读操作 - 路由到从库)
+     */
     @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        User user = userService.findByUsername(username);
-        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/email/{email}")
-    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
-        User user = userService.findByEmail(email);
-        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/phone/{phone}")
-    public ResponseEntity<User> getUserByPhone(@PathVariable String phone) {
-        User user = userService.findByPhone(phone);
-        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<User>> getUsersByStatus(@PathVariable Integer status) {
-        List<User> users = userService.findByStatus(status);
+    public ResponseEntity<List<User>> getUserByUsername(@PathVariable String username) {
+        List<User> users = userService.findByUsername(username);
         return ResponseEntity.ok(users);
     }
 
-    @PostMapping("/authenticate")
-    public ResponseEntity<User> authenticate(@RequestParam String username,
-                                           @RequestParam String password) {
-        User user = userService.authenticate(username, password);
+    /**
+     * 测试强制主库路由
+     */
+    @GetMapping("/master-test/{id}")
+    public ResponseEntity<User> getUserFromMaster(@PathVariable Long id) {
+        User user = userService.getFromMaster(id);
         return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<User>> searchUsers(@RequestParam String keyword) {
-        List<User> users = userService.searchUsers(keyword);
-        return ResponseEntity.ok(users);
+    /**
+     * 读写分离验证接口
+     */
+    @GetMapping("/test-routing")
+    public ResponseEntity<String> testRouting() {
+        return ResponseEntity.ok("读写分离测试接口 - 查看控制台日志验证路由情况");
     }
 }

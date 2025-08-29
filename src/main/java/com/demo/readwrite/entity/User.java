@@ -3,7 +3,7 @@ package com.demo.readwrite.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import java.time.LocalDateTime;
 
-@TableName("users")
+@TableName("demo_user")
 public class User {
     
     @TableId(type = IdType.ASSIGN_ID)
@@ -13,29 +13,20 @@ public class User {
     
     private String email;
     
-    private String phone;
+    private Integer age;
     
-    private String password;
-    
-    private Integer status;
-    
-    @TableField(fill = FieldFill.INSERT)
+    @TableField("created_time")
     private LocalDateTime createTime;
     
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @TableField("updated_time") 
     private LocalDateTime updateTime;
-    
-    @TableLogic
-    private Integer deleted;
 
     public User() {}
 
-    public User(String username, String email, String phone, String password) {
+    public User(String username, String email, Integer age) {
         this.username = username;
         this.email = email;
-        this.phone = phone;
-        this.password = password;
-        this.status = 1;
+        this.age = age;
     }
 
     public Long getId() {
@@ -62,28 +53,12 @@ public class User {
         this.email = email;
     }
 
-    public String getPhone() {
-        return phone;
+    public Integer getAge() {
+        return age;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
+    public void setAge(Integer age) {
+        this.age = age;
     }
 
     public LocalDateTime getCreateTime() {
@@ -102,11 +77,15 @@ public class User {
         this.updateTime = updateTime;
     }
 
-    public Integer getDeleted() {
-        return deleted;
-    }
-
-    public void setDeleted(Integer deleted) {
-        this.deleted = deleted;
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", email='" + email + '\'' +
+                ", age=" + age +
+                ", createTime=" + createTime +
+                ", updateTime=" + updateTime +
+                '}';
     }
 }
