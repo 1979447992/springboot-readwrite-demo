@@ -1,6 +1,5 @@
 package com.demo.readwrite.controller;
 
-import com.demo.readwrite.routing.DataSourceContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,14 +16,10 @@ public class HealthController {
     public ResponseEntity<Map<String, Object>> health() {
         Map<String, Object> result = new HashMap<>();
         result.put("status", "UP");
-        result.put("application", "ReadWrite Demo");
+        result.put("application", "ReadWrite Demo with ShardingSphere");
         result.put("version", "1.0.0");
         result.put("timestamp", System.currentTimeMillis());
-        
-        String currentDataSource = DataSourceContextHolder.getDataSource() != null 
-            ? DataSourceContextHolder.getDataSource().getValue() 
-            : "未设置";
-        result.put("currentDataSource", currentDataSource);
+        result.put("datasource", "ShardingSphere读写分离");
         
         return ResponseEntity.ok(result);
     }
@@ -33,15 +28,12 @@ public class HealthController {
     public ResponseEntity<Map<String, Object>> getDataSourceInfo() {
         Map<String, Object> result = new HashMap<>();
         
-        String currentDataSource = DataSourceContextHolder.getDataSource() != null 
-            ? DataSourceContextHolder.getDataSource().getValue() 
-            : "slave";
-        
-        result.put("currentDataSource", currentDataSource);
-        result.put("isMaster", DataSourceContextHolder.isMaster());
-        result.put("isSlave", DataSourceContextHolder.isSlave());
+        result.put("framework", "ShardingSphere 5.1.1");
+        result.put("readwriteSplitting", "enabled");
+        result.put("masterDataSource", "oracle-db:1521/XEPDB1 (MASTER_USER)");
+        result.put("slaveDataSource", "oracle-db:1521/XEPDB1 (SLAVE_USER)");
         result.put("timestamp", System.currentTimeMillis());
-        result.put("note", "这是一个测试接口，用于检查当前数据源路由状态");
+        result.put("note", "使用ShardingSphere自动路由，写操作→主库，读操作→从库");
         
         return ResponseEntity.ok(result);
     }
