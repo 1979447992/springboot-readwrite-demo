@@ -5,7 +5,7 @@ spring:
   # Dynamic DataSource配置 - 智能读写分离
   datasource:
     dynamic:
-      # 使用具体数据源名称作为primary
+      # 使用master作为primary，启用透明读写分离
       primary: master
       # 严格模式
       strict: false
@@ -37,6 +37,19 @@ spring:
             pool-name: SlaveHikariPool
             minimum-idle: 1
             maximum-pool-size: 5
+            connection-timeout: 30000
+            connection-test-query: SELECT 1
+        
+        # 业务数据库配置（独立业务数据库）
+        business:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://business-db:3306/business_demo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+          username: business_user
+          password: business123
+          hikari:
+            pool-name: BusinessHikariPool
+            minimum-idle: 1
+            maximum-pool-size: 8
             connection-timeout: 30000
             connection-test-query: SELECT 1
 

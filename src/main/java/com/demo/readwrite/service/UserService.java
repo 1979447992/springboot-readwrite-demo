@@ -21,7 +21,6 @@ import java.util.List;
  */
 @Service
 @Slf4j
-@DS("master_group")  // 默认使用主从读写分离组
 public class UserService extends ServiceImpl<UserMapper, User> {
 
     /**

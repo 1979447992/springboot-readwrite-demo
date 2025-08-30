@@ -14,7 +14,8 @@
       "Bash(ssh:*)",
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
-      "mcp__ssh-mcp__exec"
+      "mcp__ssh-mcp__exec",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

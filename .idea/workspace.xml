@@ -4,14 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="430c1844-9fae-432f-ac28-43c7889963f5" name="Changes" comment="">
+    <list default="true" id="430c1844-9fae-432f-ac28-43c7889963f5" name="Changes" comment="0831">
+      <change afterPath="$PROJECT_DIR$/sql/business-init.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/[Help" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql/business-init.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql/init.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-dynamic.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-shardingsphere.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/demo/readwrite/mapper/UserMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/demo/readwrite/mapper/UserMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/demo/readwrite/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/demo/readwrite/service/UserService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -59,6 +57,7 @@
   "keyToString": {
     "Application.DemoApplication.executor": "Run",
     "Application.ReadWriteDemoApplication.executor": "Run",
+    "Maven.springboot-readwrite-demo [package].executor": "Run",
     "Maven.springboot-readwrite-demo [test].executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -113,6 +112,15 @@
       <option name="presentableId" value="Default" />
       <updated>1756478472442</updated>
     </task>
+    <task id="LOCAL-00001" summary="0831">
+      <option name="closed" value="true" />
+      <created>1756571385919</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1756571385919</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -125,5 +133,9 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="0831" />
+    <option name="LAST_COMMIT_MESSAGE" value="0831" />
   </component>
 </project>

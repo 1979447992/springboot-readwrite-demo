@@ -11,21 +11,21 @@ import java.util.List;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-    @Select("SELECT * FROM users WHERE username = #{username} AND deleted = 0")
+    @Select("SELECT * FROM demo_user WHERE username = #{username} AND deleted = 0")
     User findByUsername(@Param("username") String username);
 
-    @Select("SELECT * FROM users WHERE email = #{email} AND deleted = 0")
+    @Select("SELECT * FROM demo_user WHERE email = #{email} AND deleted = 0")
     User findByEmail(@Param("email") String email);
 
-    @Select("SELECT * FROM users WHERE phone = #{phone} AND deleted = 0")
+    @Select("SELECT * FROM demo_user WHERE phone = #{phone} AND deleted = 0")
     User findByPhone(@Param("phone") String phone);
 
-    @Select("SELECT * FROM users WHERE status = #{status} AND deleted = 0 ORDER BY create_time DESC")
+    @Select("SELECT * FROM demo_user WHERE status = #{status} AND deleted = 0 ORDER BY create_time DESC")
     List<User> findByStatus(@Param("status") Integer status);
 
     /**
      * 带锁查询用户（FOR UPDATE会自动路由到主库）
      */
-    @Select("SELECT * FROM users WHERE id = #{id} AND deleted = 0 FOR UPDATE")
+    @Select("SELECT * FROM demo_user WHERE id = #{id} AND deleted = 0 FOR UPDATE")
     User selectForUpdate(@Param("id") Long id);
 }
