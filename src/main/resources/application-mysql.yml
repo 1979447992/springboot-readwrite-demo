@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: readwrite-demo
+  # ShardingSphere配置 - MySQL读写分离
+  shardingsphere:
+    # 数据源配置
+    datasource:
+      names: master,slave
+      # 主库配置（写操作）
+      master:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://mysql-db:3306/readwrite_demo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+        username: master_user
+        password: master123
+        hikari:
+          pool-name: MasterHikariPool
+          minimum-idle: 2
+          maximum-pool-size: 10
+      # 从库配置（读操作）
+      slave:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://mysql-db:3306/readwrite_demo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+        username: slave_user
+        password: slave123
+        hikari:
+          pool-name: SlaveHikariPool
+          minimum-idle: 2
+          maximum-pool-size: 8
+    # 读写分离规则
+    rules:
+      readwrite-splitting:
+        data-sources:
+          readwrite-ds:
+            static-strategy:
+              write-data-source-name: master
+              read-data-source-names: slave
+            load-balancer-name: round-robin
+        load-balancers:
+          round-robin:
+            type: ROUND_ROBIN
+    # 属性配置
+    props:
+      # 显示SQL日志，方便验证读写分离
+      sql-show: true
+      sql-simple: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# MyBatis Plus配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.demo.readwrite: DEBUG
+    org.apache.shardingsphere: INFO

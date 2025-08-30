@@ -14,11 +14,13 @@
     <artifactId>springboot-readwrite-demo</artifactId>
     <version>1.0.0</version>
     <name>SpringBoot ReadWrite Demo</name>
-    <description>Spring Boot项目，实现ShardingSphere读写分离Demo</description>
+    <description>Spring Boot项目，实现MyBatis Plus读写分离Demo</description>
     
     <properties>
         <java.version>17</java.version>
         <mybatis-plus.version>3.5.4.1</mybatis-plus.version>
+        <oracle.version>23.3.0.23.09</oracle.version>
+        <druid.version>1.2.20</druid.version>
     </properties>
     
     <dependencies>
@@ -26,6 +28,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot JDBC Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
         
         <!-- Spring Boot AOP Starter -->
@@ -41,24 +49,51 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
         
-        <!-- MySQL数据库驱动 -->
+        <!-- Oracle数据库驱动 -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>8.0.33</version>
+            <version>8.1.0</version>
+        </dependency>
+        
+        <!-- HikariCP连接池 (Spring Boot默认) -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
         </dependency>
         
         <!-- ShardingSphere读写分离 -->
         <dependency>
             <groupId>org.apache.shardingsphere</groupId>
             <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
-            <version>5.2.1</version>
+            <version>5.3.2</version>
         </dependency>
+        
+        <!-- Druid连接池 (用于读写分离和监控) -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-starter</artifactId>
+            <version>${druid.version}</version>
+        </dependency>
+        
         
         <!-- Spring Boot Actuator (监控端点) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot Configuration Processor -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
         </dependency>
         
         <!-- Spring Boot Test -->
@@ -75,6 +110,19 @@
             <optional>true</optional>
         </dependency>
     </dependencies>
+    
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <id>alimaven</id>
+            <name>aliyun maven</name>
+            <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+        </repository>
+    </repositories>
     
     <build>
         <plugins>
@@ -98,6 +146,10 @@
             <id>central</id>
             <name>Central Repository</name>
             <url>https://repo1.maven.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
 

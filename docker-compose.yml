@@ -1,49 +1,52 @@
-version: '3.8'
-
 services:
-  # 简化：单Oracle容器，双用户方案
-  oracle-db:
-    image: container-registry.oracle.com/database/express:21.3.0-xe
-    container_name: oracle-demo
+  # MySQL数据库 - 主从模拟方案
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-demo
     environment:
-      - ORACLE_PWD=OraclePassword123
-      - ORACLE_CHARACTERSET=AL32UTF8
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: readwrite_demo
+      MYSQL_USER: demo_user
+      MYSQL_PASSWORD: demo123
     ports:
-      - "1521:1521"
-      - "5500:5500"
+      - "3306:3306"
     volumes:
-      - oracle-data:/opt/oracle/oradata
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql-data:/var/lib/mysql
+      - ./sql/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - readwrite-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sqlplus", "-S", "sys/OraclePassword123@localhost:1521/XE as sysdba", "<<<", "SELECT 1 FROM DUAL;"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: --default-authentication-plugin=mysql_native_password
 
   # Spring Boot应用
   readwrite-app:
     build: .
     container_name: readwrite-demo
     environment:
-      - SPRING_PROFILES_ACTIVE=shardingsphere
-      - DB_MASTER_USERNAME=MASTER_USER
+      - SPRING_PROFILES_ACTIVE=mysql
+      - DB_HOST=mysql-db
+      - DB_PORT=3306
+      - DB_NAME=readwrite_demo
+      - DB_MASTER_USERNAME=master_user
       - DB_MASTER_PASSWORD=master123
-      - DB_SLAVE_USERNAME=SLAVE_USER  
+      - DB_SLAVE_USERNAME=slave_user
       - DB_SLAVE_PASSWORD=slave123
     ports:
       - "8080:8080"
     depends_on:
-      oracle-db:
+      mysql-db:
         condition: service_healthy
     networks:
       - readwrite-network
     restart: unless-stopped
 
 volumes:
-  oracle-data:
+  mysql-data:
 
 networks:
   readwrite-network:
