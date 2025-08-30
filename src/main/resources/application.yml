@@ -1,3 +1,74 @@
 spring:
-  profiles:
-    active: dynamic
+  application:
+    name: readwrite-demo
+  
+  # Dynamic DataSource配置 - 智能读写分离
+  datasource:
+    dynamic:
+      # 使用具体数据源名称作为primary
+      primary: master
+      # 严格模式
+      strict: false
+      # 自定义负载均衡策略
+      strategy: com.demo.readwrite.strategy.SimpleReadWriteStrategy
+      
+      # 数据源配置
+      datasource:
+        # 主库配置（写操作）
+        master:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://mysql-master:3306/readwrite_demo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+          username: root
+          password: root123
+          hikari:
+            pool-name: MasterHikariPool
+            minimum-idle: 1
+            maximum-pool-size: 5
+            connection-timeout: 30000
+            connection-test-query: SELECT 1
+        
+        # 从库配置（读操作）  
+        slave:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://mysql-slave:3306/readwrite_demo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+          username: root
+          password: root123
+          hikari:
+            pool-name: SlaveHikariPool
+            minimum-idle: 1
+            maximum-pool-size: 5
+            connection-timeout: 30000
+            connection-test-query: SELECT 1
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# MyBatis Plus配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+
+# 日志配置
+logging:
+  level:
+    com.demo.readwrite: DEBUG
+    com.baomidou.dynamic.datasource: DEBUG
+    root: INFO
+  pattern:
+    console: "[%d{HH:mm:ss.SSS}] [%thread] %-5level %logger{36} - %msg%n"
+
+# 监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
