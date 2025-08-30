@@ -1,426 +1,180 @@
-# Spring Boot + MyBatis Plus 读写分离Demo
+# SpringBoot Read-Write Separation Demo
 
-## 📋 项目概述
+基于 `dynamic-datasource-spring-boot-starter 3.6.1` 的 Spring Boot 读写分离解决方案。
 
-本项目是一个完整的Spring Boot读写分离示例应用，使用MyBatis Plus和Oracle数据库，实现了动态数据源路由功能。项目包含用户管理、支付处理和账单管理三个核心业务模块，特别针对支付等关键操作实现了强制主库查询功能。
+## 🎯 核心功能
 
-### 🏗️ 核心架构
+1. **自动读写分离** - SQL自动路由，写操作→主库，读操作→从库
+2. **@DS业务数据库不受影响** - 与现有@DS注解完全兼容
+3. **@MasterOnly强制主库读取** - 特殊场景强制从主库读取最新数据
+
+## 🏗️ 技术架构
+
+- **Spring Boot**: 3.1.5
+- **Dynamic DataSource**: 3.6.1  
+- **MyBatis Plus**: 3.5.4
+- **MySQL**: 8.0
+- **Docker**: 容器化部署
+- **Java**: 17
+
+## 📋 目录结构
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                        │
-├─────────────────────────────────────────────────────────┤
-│                 REST Controller                         │
-├─────────────────────────────────────────────────────────┤
-│                  Service Layer                          │
-├─────────────────────────────────────────────────────────┤
-│                 AOP Aspect                              │
-│           (数据源路由决策)                                 │
-├─────────────────────────────────────────────────────────┤
-│              Dynamic DataSource Router                  │
-│  ┌─────────────────┐    ┌─────────────────┐              │
-│  │    Master DB    │◄──►│    Slave DB     │              │
-│  │   (写 + 强制读)   │    │   (默认读操作)    │              │  
-│  └─────────────────┘    └─────────────────┘              │
-└─────────────────────────────────────────────────────────┘
+src/main/java/com/demo/readwrite/
+├── annotation/
+│   └── MasterOnly.java              # 强制主库读取注解
+├── aspect/
+│   ├── MasterOnlyAspect.java        # @MasterOnly切面处理
+│   └── TransactionAspect.java       # 事务切面处理
+├── config/
+│   └── DataSourceConfig.java       # 数据源配置
+├── controller/
+│   ├── HealthController.java       # 健康检查
+│   └── UserController.java         # 用户API
+├── entity/
+│   └── User.java                   # 用户实体
+├── interceptor/
+│   └── ReadWriteSplitInterceptor.java # SQL拦截器
+├── mapper/
+│   └── UserMapper.java             # MyBatis映射
+├── service/
+│   └── UserService.java            # 用户服务
+└── strategy/
+    └── SimpleReadWriteStrategy.java # 读写分离策略
 ```
 
-### ⭐ 核心特性
+## ⚙️ 配置说明
 
-1. **动态数据源路由** - 自动根据操作类型切换主从库
-2. **@MasterDB注解** - 支付等关键操作强制查询主库
-3. **AOP透明切换** - 业务代码无感知的数据源切换
-4. **完整业务场景** - 用户、支付、账单等真实业务模块
-5. **全面测试覆盖** - 单元测试和集成测试
-6. **容器化部署** - Docker和Docker Compose支持
-7. **生产就绪** - Ubuntu服务器部署脚本
-
-## 🚀 快速开始
-
-### 环境要求
-
-- Java 17+
-- Maven 3.6+
-- Oracle 11g+ 或 Oracle XE
-- Ubuntu 20.04+ (生产环境)
-- Docker & Docker Compose (可选)
-
-### 本地开发环境
-
-1. **克隆项目**
-```bash
-git clone <repository-url>
-cd springboot-readwrite-demo
-```
-
-2. **配置数据库**
-```bash
-# 启动Oracle数据库
-# 执行数据库初始化脚本
-sqlplus sys/password@localhost:1521/XE as sysdba @src/main/resources/sql/init-users.sql
-sqlplus MASTER_USER/master_password@localhost:1521/XEPDB1 @src/main/resources/sql/schema.sql
-sqlplus MASTER_USER/master_password@localhost:1521/XEPDB1 @src/main/resources/sql/data.sql
-```
-
-3. **修改配置文件**
+### application-dynamic.yml
 ```yaml
-# src/main/resources/application.yml
 spring:
   datasource:
-    master:
-      jdbc-url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
-      username: MASTER_USER
-      password: master_password
-    slave:
-      jdbc-url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
-      username: SLAVE_USER
-      password: slave_password
+    dynamic:
+      primary: master  # 默认主数据源
+      strategy: com.demo.readwrite.strategy.SimpleReadWriteStrategy
+      datasource:
+        master:  # 主库配置
+          url: jdbc:mysql://mysql-master:3306/readwrite_demo
+          username: root
+          password: root123
+        slave:   # 从库配置  
+          url: jdbc:mysql://mysql-slave:3306/readwrite_demo
+          username: root
+          password: root123
 ```
 
-4. **编译运行**
+## 🚀 快速启动
+
+### 1. 启动数据库
 ```bash
-mvn clean package -DskipTests
-java -jar target/springboot-readwrite-demo-1.0.0.jar
+docker-compose up -d mysql-master mysql-slave
 ```
 
-5. **验证运行**
+### 2. 构建应用
 ```bash
-curl http://localhost:8080/api/health
+docker build -t readwrite-demo:latest .
 ```
 
-## 🔧 关键组件详解
-
-### 1. 动态数据源路由
-
-**核心类**: `DynamicDataSource.java`
-- 继承`AbstractRoutingDataSource`
-- 根据`ThreadLocal`中的数据源类型动态选择数据源
-
-**上下文管理**: `DataSourceContextHolder.java`
-- 使用`ThreadLocal`存储当前线程的数据源类型
-- 提供线程安全的数据源切换方法
-
-### 2. @MasterDB注解机制
-
-**注解定义**: `@MasterDB`
-```java
-@Target({ElementType.METHOD, ElementType.TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-@Documented
-public @interface MasterDB {
-    String value() default "强制使用主库";
-}
-```
-
-**AOP切面**: `DataSourceAspect.java`
-- 拦截带有`@MasterDB`注解的方法
-- 自动识别写操作（save/insert/update/delete等方法前缀）
-- 确保事务完成后清理上下文
-
-### 3. 业务场景设计
-
-#### 支付服务 (PaymentService)
-```java
-@Service
-@MasterDB("支付服务所有操作强制使用主库")
-public class PaymentService {
-    
-    @MasterDB("支付状态查询必须强制主库")
-    public Payment getPaymentById(Long id) {
-        return getById(id);
-    }
-    
-    @MasterDB("处理支付必须强制主库")
-    public boolean processPayment(String orderNo) {
-        // 支付处理逻辑
-    }
-}
-```
-
-#### 用户服务 (UserService)
-```java
-@Service
-public class UserService {
-    
-    // 普通查询使用从库
-    public List<User> getAllUsers() {
-        return list();
-    }
-    
-    // 用户认证强制主库
-    @MasterDB("用户认证需要强制主库查询")
-    public User authenticate(String username, String password) {
-        // 认证逻辑
-    }
-}
-```
-
-## 📊 API接口文档
-
-### 健康检查
-```http
-GET /api/health
-```
-**响应示例**:
-```json
-{
-  "status": "UP",
-  "application": "ReadWrite Demo",
-  "version": "1.0.0",
-  "timestamp": 1703123456789,
-  "currentDataSource": "slave"
-}
-```
-
-### 用户管理
-
-#### 创建用户
-```http
-POST /api/users
-Content-Type: application/x-www-form-urlencoded
-
-username=testuser&email=test@demo.com&phone=13800000001&password=password123
-```
-
-#### 用户认证 (强制主库)
-```http
-POST /api/users/authenticate
-Content-Type: application/x-www-form-urlencoded
-
-username=testuser&password=password123
-```
-
-#### 查询用户
-```http
-GET /api/users/1001
-```
-
-### 支付管理 (所有操作强制主库)
-
-#### 创建支付
-```http
-POST /api/payments
-Content-Type: application/x-www-form-urlencoded
-
-userId=1001&amount=99.99&paymentMethod=微信支付&description=VIP会员
-```
-
-#### 处理支付
-```http
-POST /api/payments/process
-Content-Type: application/x-www-form-urlencoded
-
-orderNo=ORDER_1700000001_ABC123
-```
-
-#### 查询支付状态
-```http
-GET /api/payments/order/ORDER_1700000001_ABC123
-```
-
-### 账单管理
-
-#### 创建账单
-```http
-POST /api/bills
-Content-Type: application/x-www-form-urlencoded
-
-userId=1001&title=工资收入&amount=8000.00&type=1&remark=11月工资
-```
-
-#### 账单统计 (强制主库)
-```http
-GET /api/bills/user/1001/total
-```
-
-## 🧪 测试验证
-
-### 1. 单元测试
+### 3. 启动应用
 ```bash
-mvn test
+docker run -d --name readwrite-demo \
+  --network springboot-readwrite-demo_default \
+  -p 8080:8080 readwrite-demo:latest
 ```
 
-### 2. 读写分离验证
+## 🧪 功能测试
 
-#### 验证读操作使用从库
+### 写操作（路由到master）
 ```bash
-# 查询用户列表 (应该使用从库)
-curl http://localhost:8080/api/users
-
-# 查看日志确认数据源
-tail -f logs/readwrite-demo.log | grep "使用从库"
+curl -X POST "http://localhost:8080/api/users" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=testuser&email=test@example.com&age=25"
 ```
 
-#### 验证写操作使用主库
+### 读操作（路由到slave）
+```bash  
+curl "http://localhost:8080/api/users"
+```
+
+### @MasterOnly强制主库读取
 ```bash
-# 创建用户 (应该使用主库)
-curl -X POST http://localhost:8080/api/users \
-  -d "username=newuser&email=new@demo.com&phone=13900000001&password=pass123"
-
-# 查看日志确认数据源
-tail -f logs/readwrite-demo.log | grep "使用主库"
+curl "http://localhost:8080/api/users/1/master"
 ```
 
-#### 验证@MasterDB注解
+### 查看路由日志
 ```bash
-# 用户认证 (强制主库)
-curl -X POST http://localhost:8080/api/users/authenticate \
-  -d "username=admin&password=admin123"
-
-# 支付查询 (强制主库)
-curl http://localhost:8080/api/payments/2001
-
-# 查看日志确认强制主库
-tail -f logs/readwrite-demo.log | grep "强制主库"
+docker logs readwrite-demo | grep -E "(SQL拦截|检测到强制路由)" | tail -10
 ```
 
-### 3. 压力测试
+## 📊 预期日志输出
 
-使用Apache Bench进行压力测试：
+**写操作日志：**
+```
+SQL拦截 - 类型: INSERT, 路由: WRITE, SQL: INSERT INTO demo_user ...
+```
+
+**读操作日志：**
+```  
+SQL拦截 - 类型: SELECT, 路由: READ, SQL: SELECT * FROM demo_user
+```
+
+**@MasterOnly日志：**
+```
+检测到强制路由设置，保持: WRITE
+SQL拦截 - 类型: SELECT, 路由: WRITE, SQL: SELECT * FROM demo_user WHERE id=?
+```
+
+## 🔧 核心实现
+
+### 1. SQL拦截器
+- `ReadWriteSplitInterceptor` - 拦截所有SQL操作
+- 自动识别INSERT/UPDATE/DELETE→WRITE，SELECT→READ
+- 支持复杂场景：FOR UPDATE、事务等强制主库
+
+### 2. @MasterOnly注解
+- `@MasterOnly` - 方法级别强制主库读取
+- `MasterOnlyAspect` - AOP切面处理
+- 优先级高于自动路由策略
+
+### 3. 数据源策略  
+- `SimpleReadWriteStrategy` - 实现路由决策
+- ThreadLocal管理SQL类型和事务状态
+- 支持K8s环境下的负载均衡
+
+## 🌟 设计亮点
+
+1. **最小化侵入** - 只需配置文件修改，业务代码无需调整
+2. **智能路由** - 自动识别SQL类型并路由
+3. **事务感知** - 事务中所有操作强制主库
+4. **强制控制** - @MasterOnly提供精确控制
+5. **K8s友好** - 适配云原生环境
+
+## 📝 注意事项
+
+1. **主从同步** - 生产环境需配置MySQL主从复制
+2. **事务一致性** - 事务中的所有操作都会路由到主库
+3. **连接池配置** - 根据实际负载调整连接池参数
+4. **监控告警** - 建议配置数据库连接和延迟监控
+
+## 🔍 故障排查
+
+### 应用无法启动
 ```bash
-# 测试读操作性能
-ab -n 1000 -c 10 http://localhost:8080/api/users
-
-# 测试写操作性能
-ab -n 100 -c 5 -p post_data.txt -T application/x-www-form-urlencoded \
-   http://localhost:8080/api/bills
+docker logs readwrite-demo | grep ERROR
 ```
 
-## 🚀 生产部署
+### 路由不生效
+```bash  
+docker logs readwrite-demo | grep "SQL拦截" | tail -20
+```
 
-### Ubuntu服务器部署
-
-1. **准备服务器**
+### 数据库连接问题
 ```bash
-# 上传部署脚本到服务器
-scp deploy.sh root@your-server:/tmp/
-scp deploy-db.sh root@your-server:/tmp/
-
-# 执行部署
-ssh root@your-server
-chmod +x /tmp/deploy.sh
-./tmp/deploy.sh
+docker logs readwrite-demo | grep -E "(datasource|connection)" | tail -10
 ```
 
-2. **配置数据库**
-```bash
-# 上传SQL脚本
-scp -r src/main/resources/sql/ root@your-server:/tmp/
+## 📚 参考资料
 
-# 执行数据库配置
-chmod +x /tmp/deploy-db.sh
-./tmp/deploy-db.sh
-```
-
-3. **部署应用**
-```bash
-# 编译应用
-mvn clean package -DskipTests
-
-# 上传JAR文件
-scp target/springboot-readwrite-demo-1.0.0.jar root@your-server:/opt/readwrite-demo/app.jar
-
-# 启动应用
-systemctl start readwrite-demo.service
-systemctl enable readwrite-demo.service
-```
-
-4. **验证部署**
-```bash
-# 检查服务状态
-systemctl status readwrite-demo.service
-
-# 查看日志
-journalctl -u readwrite-demo.service -f
-
-# 测试接口
-curl http://your-server-ip/api/health
-```
-
-### Docker部署
-
-1. **使用Docker Compose**
-```bash
-# 启动所有服务
-docker-compose up -d
-
-# 查看服务状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f readwrite-app
-```
-
-2. **验证容器部署**
-```bash
-# 检查Oracle数据库
-docker exec -it oracle-xe sqlplus sys/OraclePassword123@localhost:1521/XE as sysdba
-
-# 检查应用
-curl http://localhost:8080/api/health
-```
-
-## 🔍 监控和运维
-
-### 1. 日志监控
-```bash
-# 应用日志
-tail -f /var/log/readwrite-demo/readwrite-demo.log
-
-# 系统日志
-journalctl -u readwrite-demo.service -f
-
-# 数据源切换日志
-grep "数据源" /var/log/readwrite-demo/readwrite-demo.log
-```
-
-### 2. 性能监控
-```bash
-# JVM监控
-jstat -gc [PID] 1s
-
-# 数据库连接池监控
-curl http://localhost:8080/api/health | jq '.datasource'
-```
-
-### 3. 故障排查
-
-#### 数据库连接问题
-```bash
-# 检查Oracle服务
-lsnrctl status
-
-# 测试数据库连接
-sqlplus MASTER_USER/master_password@localhost:1521/XEPDB1
-sqlplus SLAVE_USER/slave_password@localhost:1521/XEPDB1
-```
-
-#### 应用启动问题
-```bash
-# 检查端口占用
-netstat -tulpn | grep 8080
-
-# 检查Java进程
-jps -v
-
-# 检查配置文件
-cat /opt/readwrite-demo/config/application.yml
-```
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-## 📄 许可证
-
-本项目使用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
-
-## 📞 技术支持
-
-- 项目文档: [项目Wiki](https://github.com/your-repo/wiki)
-- 问题反馈: [Issues](https://github.com/your-repo/issues)
-- 技术讨论: [Discussions](https://github.com/your-repo/discussions)
+- [Dynamic DataSource 官方文档](https://baomidou.com/pages/a61e1b/)
+- [MyBatis Plus 官方文档](https://baomidou.com/)
+- [Spring Boot 官方文档](https://spring.io/projects/spring-boot)

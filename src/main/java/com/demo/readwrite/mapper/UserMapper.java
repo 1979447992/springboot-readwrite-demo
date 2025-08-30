@@ -22,4 +22,10 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Select("SELECT * FROM users WHERE status = #{status} AND deleted = 0 ORDER BY create_time DESC")
     List<User> findByStatus(@Param("status") Integer status);
+
+    /**
+     * 带锁查询用户（FOR UPDATE会自动路由到主库）
+     */
+    @Select("SELECT * FROM users WHERE id = #{id} AND deleted = 0 FOR UPDATE")
+    User selectForUpdate(@Param("id") Long id);
 }

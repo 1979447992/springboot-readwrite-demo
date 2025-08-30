@@ -1,18 +1,66 @@
 services:
-  # MySQL数据库 - 主从模拟方案
-  mysql-db:
+  # MySQL主库 - 写操作
+  mysql-master-service:
     image: mysql:8.0
-    container_name: mysql-demo
+    container_name: mysql-master
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: readwrite_demo
-      MYSQL_USER: demo_user
-      MYSQL_PASSWORD: demo123
+      MYSQL_USER: master_user
+      MYSQL_PASSWORD: master123
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-master-data:/var/lib/mysql
       - ./sql/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - readwrite-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: --default-authentication-plugin=mysql_native_password
+
+  # MySQL从库 - 读操作（模拟K8s Service后的多实例）
+  mysql-slave-service:
+    image: mysql:8.0
+    container_name: mysql-slave
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: readwrite_demo
+      MYSQL_USER: slave_user
+      MYSQL_PASSWORD: slave123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+      - ./sql/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - readwrite-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: --default-authentication-plugin=mysql_native_password
+
+  # 业务数据库 - 独立数据库
+  business-db-service:
+    image: mysql:8.0
+    container_name: business-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: business_demo
+      MYSQL_USER: business_user
+      MYSQL_PASSWORD: business123
+    ports:
+      - "3308:3306"
+    volumes:
+      - business-data:/var/lib/mysql
+      - ./sql/business-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - readwrite-network
     restart: unless-stopped
@@ -28,25 +76,29 @@ services:
     build: .
     container_name: readwrite-demo
     environment:
-      - SPRING_PROFILES_ACTIVE=mysql
-      - DB_HOST=mysql-db
-      - DB_PORT=3306
-      - DB_NAME=readwrite_demo
-      - DB_MASTER_USERNAME=master_user
-      - DB_MASTER_PASSWORD=master123
-      - DB_SLAVE_USERNAME=slave_user
-      - DB_SLAVE_PASSWORD=slave123
+      - SPRING_PROFILES_ACTIVE=dynamic
     ports:
       - "8080:8080"
     depends_on:
-      mysql-db:
+      mysql-master-service:
+        condition: service_healthy
+      mysql-slave-service:
+        condition: service_healthy
+      business-db-service:
         condition: service_healthy
     networks:
       - readwrite-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  mysql-data:
+  mysql-master-data:
+  mysql-slave-data:
+  business-data:
 
 networks:
   readwrite-network:
