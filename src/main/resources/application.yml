@@ -9,8 +9,6 @@ spring:
       primary: master
       # 严格模式
       strict: false
-      # 自定义负载均衡策略
-      strategy: com.demo.readwrite.strategy.SimpleReadWriteStrategy
       
       # 数据源配置
       datasource:
