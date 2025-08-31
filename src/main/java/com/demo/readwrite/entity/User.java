@@ -15,10 +15,10 @@ public class User {
     
     private Integer age;
     
-    @TableField("create_time")
+    @TableField("created_time")
     private LocalDateTime createTime;
     
-    @TableField("update_time") 
+    @TableField("updated_time") 
     private LocalDateTime updateTime;
 
     public User() {}
