@@ -1,7 +1,6 @@
 package com.demo.readwrite.aspect;
 
 import com.demo.readwrite.annotation.MasterOnly;
-import com.demo.readwrite.strategy.SimpleReadWriteStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -51,8 +50,7 @@ public class MasterOnlyAspect {
         }
         
         try {
-            // 强制设置为写类型，确保路由到主库
-            SimpleReadWriteStrategy.setSqlType(SimpleReadWriteStrategy.SqlType.WRITE);
+            // 强制使用主库，dynamic-datasource会自动处理路由
             return point.proceed();
         } finally {
             if (masterOnly.logEnabled()) {

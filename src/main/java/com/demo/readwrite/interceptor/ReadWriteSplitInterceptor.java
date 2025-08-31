@@ -1,6 +1,5 @@
 package com.demo.readwrite.interceptor;
 
-import com.demo.readwrite.strategy.SimpleReadWriteStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
@@ -16,7 +15,6 @@ import java.util.Properties;
  * MyBatis读写分离拦截器
  * 自动识别SQL类型并设置路由策略
  */
-//@Component
 @Intercepts({
     @Signature(type = Executor.class, method = "update", 
                args = {MappedStatement.class, Object.class}),
@@ -39,22 +37,11 @@ public class ReadWriteSplitInterceptor implements Interceptor {
         BoundSql boundSql = ms.getBoundSql(parameter);
         String sql = boundSql.getSql();
         
-        // 检查是否已有强制设置（如@MasterOnly）
-        SimpleReadWriteStrategy.SqlType existingSqlType = SimpleReadWriteStrategy.getSqlType();
-        SimpleReadWriteStrategy.SqlType sqlType;
-        
-        if (existingSqlType != null) {
-            // 已有强制设置，不覆盖
-            sqlType = existingSqlType;
-            log.debug("检测到强制路由设置，保持: {}", sqlType);
-        } else {
-            // 自动判断SQL类型并设置路由策略
-            sqlType = determineSqlType(sqlCommandType, sql);
-            SimpleReadWriteStrategy.setSqlType(sqlType);
-        }
+        // 判断SQL类型并设置路由策略
+        String routeType = determineSqlType(sqlCommandType, sql);
         
         log.debug("SQL拦截 - 类型: {}, 路由: {}, SQL: {}", 
-                 sqlCommandType, sqlType, sql.replaceAll("\\s+", " ").trim());
+                 sqlCommandType, routeType, sql.replaceAll("\\s+", " ").trim());
 
         return invocation.proceed();
     }
@@ -62,12 +49,12 @@ public class ReadWriteSplitInterceptor implements Interceptor {
     /**
      * 判断SQL类型
      */
-    private SimpleReadWriteStrategy.SqlType determineSqlType(SqlCommandType sqlCommandType, String sql) {
+    private String determineSqlType(SqlCommandType sqlCommandType, String sql) {
         // 明确的写操作
         if (SqlCommandType.INSERT == sqlCommandType || 
             SqlCommandType.UPDATE == sqlCommandType || 
             SqlCommandType.DELETE == sqlCommandType) {
-            return SimpleReadWriteStrategy.SqlType.WRITE;
+            return "WRITE";
         }
         
         // SELECT语句需要进一步判断
@@ -76,15 +63,15 @@ public class ReadWriteSplitInterceptor implements Interceptor {
         }
         
         // 其他情况（如存储过程调用等）默认走主库保证安全
-        return SimpleReadWriteStrategy.SqlType.WRITE;
+        return "WRITE";
     }
 
     /**
      * 分析SELECT语句是否需要走主库
      */
-    private SimpleReadWriteStrategy.SqlType analyzeSelectStatement(String sql) {
+    private String analyzeSelectStatement(String sql) {
         if (sql == null) {
-            return SimpleReadWriteStrategy.SqlType.WRITE;
+            return "READ";
         }
         
         String upperSql = sql.toUpperCase();
@@ -97,11 +84,11 @@ public class ReadWriteSplitInterceptor implements Interceptor {
             upperSql.contains("FOUND_ROWS()") ||
             upperSql.contains("ROW_COUNT()") ||
             upperSql.contains("LAST_INSERT_ID()")) {
-            return SimpleReadWriteStrategy.SqlType.WRITE;
+            return "WRITE";
         }
         
         // 普通SELECT走从库
-        return SimpleReadWriteStrategy.SqlType.READ;
+        return "READ";
     }
 
     @Override
